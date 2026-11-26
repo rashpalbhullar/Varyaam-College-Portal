@@ -337,11 +337,11 @@
 .gndu-slip-line{display:flex;gap:6px;border-bottom:1px solid #111;min-height:19px;align-items:center}
 .gndu-slip-line span:last-child{flex:1;text-align:center;font-weight:bold}
 .gndu-slip-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.gndu-slip-card{height:40mm;border:2px solid #111;padding:4px 6px;position:relative}
+.gndu-slip-card{min-height:40mm;border:2px solid #111;padding:4px 6px;position:relative}
 .gndu-slip-card-head{display:flex;justify-content:space-between;border-bottom:1px solid #111;font-weight:bold}
 .gndu-slip-card-title{text-align:center;font-size:14px;font-weight:bold;border-bottom:1px solid #111;padding:3px}
 .gndu-slip-card-row{display:flex;align-items:center;gap:5px;padding-top:4px}
-.gndu-slip-card-row b{flex:1;text-align:center;border-bottom:1px solid #111}
+.gndu-slip-card-row b{flex:1;min-width:0;overflow-wrap:anywhere;text-align:center;border-bottom:1px solid #111}
 .gndu-slip-count{text-align:center;margin-top:5px}
 .gndu-slip-count strong{display:inline-flex;border:2px solid #111;border-radius:50%;min-width:34px;height:34px;align-items:center;justify-content:center;font-size:16px}
 .gndu-slip-bottom{border:2px solid #111;margin-top:8px;padding:5px 6px;min-height:90mm}
@@ -2545,7 +2545,7 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
         <td class="text-nowrap">${escapeHtml(d)}</td><td>${escapeHtml(r.exam_day||'')}</td>
         <td class="text-nowrap">${escapeHtml(r.session_name||'')}<div class="small text-muted">${time}</div></td>
         <td>${escapeHtml(examName(r))}<div class="small text-muted">${escapeHtml(r.class_code||'')}</div></td>
-        <td>${escapeHtml(r.subject_name||'')}${note}</td><td class="text-center fw-semibold">${escapeHtml(r.paper_code||'')}</td>
+        <td>${escapeHtml(r.subject_name||'')}${note}</td><td class="text-center fw-semibold">${escapeHtml(r.subject_code||(!String(r.class_code).startsWith('1904')?r.paper_code:'')||'')}</td>
         <td class="text-center fw-bold">${r.student_count == null ? '—' : Number(r.student_count)}</td></tr>`;
     }).join('');
     filterGNDUDateSheet();
@@ -2565,12 +2565,12 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
     sessionSel.disabled=true;
     try {
       const {data,error}=await supabaseClient.from('gndu_exam_papers')
-        .select('semester,class_code,exam_date,session_name,subject_name,paper_code,start_time,end_time')
+        .select('semester,class_code,exam_date,session_name,subject_name,paper_code,subject_code,student_count,start_time,end_time')
         .eq('school_code',GNDU_SCHOOL_CODE)
         .eq('exam_session',GNDU_SEATING_SESSION)
         .order('exam_date',{ascending:true});
       if(error) throw error;
-      gnduSeatingPaperRows=data||[];
+      gnduSeatingPaperRows=(data||[]).filter(p=>!String(p.class_code).startsWith('1904')||Number(p.student_count)>0);
       // Session rules are stored in Supabase; retain the agreed defaults if the
       // rules table has not yet been installed or is temporarily unavailable.
       try {
@@ -2608,11 +2608,11 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
     if(plans) plans.innerHTML='';
     if(!sel) return;
     const datePapers=gnduSeatingPaperRows.filter(x=>x.exam_date===date);
-    const sessions=[...new Set(datePapers.map(x=>gnduSessionForSemester(x.semester)).filter(Boolean))];
+    const sessions=[...new Set(datePapers.map(x=>(x.session_name||gnduSessionForSemester(x.semester))).filter(Boolean))];
     const ordered=['Morning','Evening'].filter(x=>sessions.includes(x));
     sel.innerHTML='<option value="">Select session</option>'+ordered.map(x=>`<option value="${x}">${x}</option>`).join('');
     sel.disabled=!date || !ordered.length;
-    if(status) status.textContent=date?(ordered.length?'Session is assigned automatically by semester: Semesters I–IV Morning; Semesters V–VI Evening. Select a session to generate class-wise plans.':'No supported semester records found for this date.'):'Select an examination date.';
+    if(status) status.textContent=date?(ordered.length?'Session follows the official date sheet. Select a session to generate a combined B.A. / B.Com (ODL) plan.':'No supported semester records found for this date.'):'Select an examination date.';
   }
 
   function splitGNDUSeatingColumns(students, columns=5) {
@@ -2641,7 +2641,7 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
       return {name:sg.name,code:sg.code||'',students:unique};
     }).filter(sg=>sg.students.length);
     const total=normalizedGroups.reduce((n,sg)=>n+sg.students.length,0);
-    const firstFourRows=Math.round(total/5);
+    const firstFourRows=Math.min(Math.round(total/5),Math.floor(total/4));
     const capacities=[firstFourRows,firstFourRows,firstFourRows,firstFourRows,total-(firstFourRows*4)];
     const columns=Array.from({length:5},()=>[]);
     let colIndex=0, colUsed=0;
@@ -2780,13 +2780,13 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
       // so load that table and match by semester + normalized subject name.
       const paperCodeMap = new Map();
       const paperResult = await supabaseClient.from('gndu_exam_papers')
-        .select('semester,subject_name,paper_code')
+        .select('semester,class_code,subject_name,paper_code,subject_code')
         .eq('school_code', GNDU_SCHOOL_CODE)
         .eq('exam_session', GNDU_EXAM_STATUS_SESSION);
       if (paperResult.error) console.warn('Could not load GNDU paper codes from date sheet:', paperResult.error);
       (paperResult.data || []).forEach(paper => {
-        const key = `${Number(paper.semester)}|${normalizeGNDUCodeSubject(paper.subject_name)}`;
-        const code = String(paper.paper_code || '').trim();
+        const key = `${paper.class_code}|${Number(paper.semester)}|${normalizeGNDUCodeSubject(paper.subject_name)}`;
+        const code = String(paper.subject_code || (!String(paper.class_code).startsWith('1904')?paper.paper_code:'') || '').trim();
         if (code) paperCodeMap.set(key, code);
       });
       const studentById = new Map(loadedStudents.map(st => [String(st.id), st]));
@@ -2797,13 +2797,13 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
         const label = String(row.subject_name || row.subject_chart_label || row.subject || '').trim();
         // Prefer a code physically stored on the allocation row; otherwise
         // retrieve the official paper_code from the date sheet. Never fabricate.
-        const directCode = row.subject_code ?? row.paper_code ?? row.course_code ?? row.code ?? row.paper_id ?? '';
+        const directCode = row.subject_code ?? '';
         const student = studentById.get(String(row.student_id));
         const semester = Number(student?.semester);
         const normalizedLabel = normalizeGNDUCodeSubject(label);
         const matchedPaper = findGNDUCodeMatch(label, semester, student?.class_code, paperResult.data || []);
-        let matchedCode = paperCodeMap.get(`${semester}|${normalizedLabel}`) || matchedPaper?.paper_code || '';
-        const code = String(directCode || matchedCode || '').trim();
+        let matchedCode = paperCodeMap.get(`${student?.class_code}|${semester}|${normalizedLabel}`) || matchedPaper?.subject_code || (!String(student?.class_code).startsWith('1904')?matchedPaper?.paper_code:'') || '';
+        const code = String(matchedCode || directCode || '').trim();
         if (label || code) subjectMap.get(String(row.student_id)).push({name:label, code});
       });
       gnduExamStatusSaved = new Map(statusRows.map(row => [String(row.student_id), row.student_status]));
@@ -2928,7 +2928,7 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
     const status=document.getElementById('gnduSeatingStatus');
     const container=document.getElementById('gnduSeatingPlansContainer');
     if(!date || !session) { status.textContent='Please select both examination date and session.'; return; }
-    const papers=gnduSeatingPaperRows.filter(x=>String(x.exam_date).slice(0,10)===date && gnduSessionForSemester(x.semester)===session);
+    const papers=gnduSeatingPaperRows.filter(x=>String(x.exam_date).slice(0,10)===date && (x.session_name||gnduSessionForSemester(x.semester))===session);
     if(!papers.length) { container.innerHTML=''; status.textContent='No classes or papers found for this date and session.'; return; }
     status.textContent='Fetching student subject allocations...';
     container.innerHTML='';
@@ -2982,7 +2982,7 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
       };
       for(const sr of subjectRows||[]) {
         const st=studentMap.get(sr.student_id);
-        if(!st || !semesters.includes(st.semester)) continue;
+        if(!st || !papers.some(p=>String(p.class_code)===String(st.class_code))) continue;
         st.student_status=seatingStatusMap.get(st.id) || (Number(subjectCounts.get(st.id)||0)>4?'Regular':'Reappear');
         // Signature-chart allocations are already tied to the selected exam_date.
         // Match normalized aliases to the official GNDU paper title where possible.
@@ -2998,19 +2998,20 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
         const group=groups.get(groupKey);
         const subjectName=paper?.subject_name||chartSubject;
         const subjectKey=canonicalSubject(subjectName);
-        if(!group.subjectGroups.has(subjectKey)) group.subjectGroups.set(subjectKey,{name:subjectName,code:String(paper?.paper_code||'').trim(),students:[]});
+        if(!group.subjectGroups.has(subjectKey)) group.subjectGroups.set(subjectKey,{name:subjectName,code:String(paper?.subject_code||(!String(st.class_code).startsWith('1904')?paper?.paper_code:'')||'').trim(),students:[]});
         const subjectGroup=group.subjectGroups.get(subjectKey);
         // Keep the official GNDU subject wording as the heading when it becomes
         // available, instead of showing a concatenation of duplicate chart labels.
         if(paper?.subject_name) subjectGroup.name=paper.subject_name;
-        if(paper?.paper_code) subjectGroup.code=String(paper.paper_code).trim();
+        if(paper?.subject_code) subjectGroup.code=String(paper.subject_code).trim();
         subjectGroup.students.push(st);
       }
-      const plans=[...groups.values()].map(g=>({...g,subjectGroups:[...g.subjectGroups.values()].map(sg=>({...sg,students:[...new Map(sg.students.map(st=>[st.id,st])).values()].sort((a,b)=>String(a.roll_no).localeCompare(String(b.roll_no)))}))}));
-      if(!plans.length) { status.textContent='No matching students found for this date/session and semester.'; return; }
-      plans.sort((a,b)=>Number(a.semester)-Number(b.semester));
-      container.innerHTML=plans.map(g=>renderGNDUSeatingPlan(g,date,session)).join('');
-      status.textContent=`Generated ${plans.length} combined class-wise seating plan(s), covering ${plans.reduce((n,g)=>n+g.subjectGroups.reduce((m,sg)=>m+sg.students.length,0),0)} student-subject allocations.`;
+      const classPlans=[...groups.values()].map(g=>({...g,subjectGroups:[...g.subjectGroups.values()].map(sg=>({...sg,students:[...new Map(sg.students.map(st=>[st.id,st])).values()].sort((a,b)=>String(a.roll_no).localeCompare(String(b.roll_no)))}))}));
+      if(!classPlans.length) { status.textContent='No matching students found for this date/session and semester.'; return; }
+      classPlans.sort((a,b)=>Number(a.semester)-Number(b.semester)||String(a.class_name).localeCompare(String(b.class_name)));
+      const combined={class_name:[...new Set(classPlans.map(g=>g.class_name))].join(' / '),subjectGroups:classPlans.flatMap(g=>g.subjectGroups)};
+      container.innerHTML=renderGNDUSeatingPlan(combined,date,session);
+      status.textContent=`Generated combined seating plan covering ${combined.subjectGroups.reduce((n,sg)=>n+sg.students.length,0)} student-subject allocations.`;
     } catch(e) {
       status.innerHTML=`<span class="text-danger">Could not generate seating plan: ${escapeHtml(e.message)}. Check SELECT permissions/RLS on gndu_exam_students and gndu_exam_student_subjects.</span>`;
     }
@@ -3146,19 +3147,19 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
           // Never use the B.Com paper code as its GNDU subject code.
           const code=p.subject_code||(!isB?p.paper_code:'');
           return `<td class="gndu-ref-subject">${gnduRefEsc(p.subject_name)}${p._unverified?' *':''}</td><td class="gndu-ref-small">${gnduRefEsc(code)}</td><td class="gndu-ref-small">${reg}</td><td class="gndu-ref-small">${re}</td><td class="gndu-ref-small"><b>${reg+re}</b></td>`;});
-        return `<tr class="gndu-ref-date-row${groupColor}">${i===0?`<td rowspan="${n}">${++serial}</td><td rowspan="${n}">${fmtDate(date)}</td><td rowspan="${n}">${day}</td><td rowspan="${n}">${sessionLabel}</td>`:''}${cells.join('')}</tr>`;
+        return `<tr class="gndu-ref-date-row${groupColor}">${i===0?`<td rowspan="${n}">${++serial}</td><td rowspan="${n}">${fmtDate(date)}</td><td rowspan="${n}">${day}</td><td rowspan="${n}" style="white-space:nowrap">${sessionLabel}</td>`:''}${cells.join('')}</tr>`;
       }).join('');
     }).join('');
     const semhead=[1,3,5].map(sem=>`<th colspan="5">Semester - ${gnduRefRoman[sem]}</th>`).join('');
     const colhead=[1,3,5].map(sem=>`<th>${isB?'B.Com.':'B.A.'} Semester - ${gnduRefRoman[sem]}</th><th>Code</th><th>Reg</th><th>Re</th><th>Total</th>`).join('');
-    const widths=[2.5,4.5,4.5,1.5,...Array(3).fill([16.5,3.5,3,3,3]).flat()];
+    const widths=[2.5,4.5,4.5,4.5,...Array(3).fill([15.5,3.5,3,3,3]).flat()];
     const colgroup='<colgroup>'+widths.map(w=>`<col style="width:${w}%">`).join('')+'</colgroup>';
-    box.innerHTML=`<div class="gndu-ref-print"><table class="gndu-ref-table">${colgroup}<thead><tr><th colspan="19" class="gndu-ref-college">I.T. College for Women, Algon Kothi (Tarn Taran)</th></tr><tr><th colspan="19">Date Sheet Dec-2026 - Odd Semester · ${isB?'B.Com. (ODL)':'B.A.'}</th></tr><tr><th colspan="4"></th><th colspan="15">Morning / Evening (as per GNDU paper schedule)</th></tr><tr><th colspan="4"></th>${semhead}</tr><tr><th>S.No</th><th>Date</th><th>Day</th><th>Session</th>${colhead}</tr></thead><tbody>${trs||'<tr><td colspan="19">No subjects with verified student allocations for this examination</td></tr>'}</tbody></table></div>`;
+    box.innerHTML=`<div class="gndu-ref-print"><table class="gndu-ref-table">${colgroup}<thead><tr><th colspan="19" class="gndu-ref-college">I.T. College for Women, Algon Kothi (Tarn Taran)</th></tr><tr><th colspan="19">Date Sheet Dec-2026 - Odd Semester · ${isB?'B.Com. (ODL)':'B.A.'}</th></tr><tr><th colspan="4"></th><th colspan="15">Morning / Evening (as per GNDU paper schedule)</th></tr><tr><th colspan="4"></th>${semhead}</tr><tr><th>S.No</th><th>Date</th><th>Day</th><th style="white-space:nowrap">Session</th>${colhead}</tr></thead><tbody>${trs||'<tr><td colspan="19">No subjects with verified student allocations for this examination</td></tr>'}</tbody></table></div>`;
   }
   function printGNDUDateSheet(){
     const node=document.querySelector('#gnduDateSheetReferencePreview .gndu-ref-print');if(!node)return;
     const w=window.open('','_blank');if(!w)return alert('Allow popups to print.');
-    w.document.write(`<!doctype html><html><head><title>GNDU Date Sheet</title><style>${GNDU_REF_PRINT_CSS} @page{size:A3 landscape;margin:7mm}body{margin:0;background:white}.gndu-ref-print{width:100%}</style></head><body>${node.outerHTML}</body></html>`);
+    w.document.write(`<!doctype html><html><head><title>GNDU Date Sheet</title><style>${GNDU_REF_PRINT_CSS} @page{size:A3 landscape;margin:7mm}body{margin:0;background:white}.gndu-ref-print{width:100%}.gndu-ref-table{height:${document.getElementById('gnduDateSheetCourse')?.value==='BCOM'?'140mm':'280mm'};font-size:12px}.gndu-ref-table thead tr{height:8mm}.gndu-ref-table thead tr:first-child{height:14mm}.gndu-ref-table tbody td{vertical-align:middle}.gndu-ref-table .gndu-ref-small{font-size:11px}</style></head><body>${node.outerHTML}</body></html>`);
     w.document.close();w.focus();setTimeout(()=>w.print(),450);
   }
   const GNDU_REF_PRINT_CSS=`.gndu-ref-table{border-collapse:collapse;width:100%;table-layout:fixed;font-family:"Times New Roman",serif;color:#000;font-size:10px;text-align:center}.gndu-ref-table th,.gndu-ref-table td{border:1px solid #000;padding:4px 2px;overflow-wrap:anywhere}.gndu-ref-table thead th{font-weight:bold}.gndu-ref-table .gndu-ref-college{font-size:24px;padding:8px}.gndu-ref-table tbody td:nth-child(5),.gndu-ref-table tbody td:nth-child(10),.gndu-ref-table tbody td:nth-child(15){font-weight:bold}.gndu-ref-gray{background:#d8d8d8!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}.gndu-ref-table thead{display:table-header-group}.gndu-ref-table tr{break-inside:avoid}.gndu-ref-table .gndu-ref-subject{font-weight:bold;overflow-wrap:normal;word-break:normal;hyphens:none;padding:4px 3px}.gndu-ref-table .gndu-ref-small{font-size:9px;padding:3px 1px}.gndu-ref-table .gndu-ref-date-row td{background:inherit}`;
@@ -7169,11 +7170,11 @@ async function gnduSlipRefresh(){
    const key=[p.class_code,p.paper_code||p._virtualKey||'',p.exam_date].join('|');
    const students=audit.counts.get(key)?.[type]?.size||0;
    if(students===0)continue;
-   const entry={date,session,semester:p.semester,class_code:p.class_code,subject:p.subject_name,code:p.paper_code||'',type,students,absent:0,paper:p.paper_code||'....',option:'....'};
+   const entry={date,session,semester:p.semester,class_code:p.class_code,subject:p.subject_name,code:p.subject_code||(!String(p.class_code).startsWith('1904')?p.paper_code:'')||'',type,students,absent:0,paper:String(p.class_code).startsWith('1904')?(p.paper_code||''):'',option:'....'};
    entry.key=gnduSlipKey(entry);
-   const prior=saved[entry.key]||{};
+   const prior=saved[entry.key]||saved[gnduSlipKey({...entry,code:p.paper_code||''})]||{};
    // Do not restore stale student counts; absent, paper and option remain editable.
-   entry.absent=Math.min(students,Math.max(0,Number(prior.absent)||0));entry.paper=prior.paper||entry.paper;entry.option=prior.option||entry.option;
+   entry.absent=Math.min(students,Math.max(0,Number(prior.absent)||0));entry.paper=String(p.class_code).startsWith('1904')?(p.paper_code||''):(prior.paper&&String(prior.paper).trim()!==String(entry.code).trim()?prior.paper:'');entry.option=prior.option||entry.option;
    gnduSlipEntries.push(entry);
   }}
   for(const x of custom){const entry={...x,key:gnduSlipKey(x)};gnduSlipEntries.push({...entry,...(saved[entry.key]||{})})}
@@ -7184,6 +7185,7 @@ async function gnduSlipRefresh(){
 function gnduSlipEdit(i,field,val){
  const x=gnduSlipEntries[i];if(!x)return;
  x[field]=['students','absent'].includes(field)?Math.max(0,Math.floor(Number(val)||0)):String(val);
+ if(field==='paper'&&x.code&&x.paper.trim()===String(x.code).trim()){x.paper='';alert('Enter the actual paper designation, not the subject code.');}
  if(x.absent>x.students)x.absent=x.students;
  gnduSlipSave();gnduSlipRender();
 }
@@ -7195,7 +7197,7 @@ function gnduSlipAdd(){
  if(![1,3,5].includes(semester))return alert('Invalid semester');
  const course=(prompt('Course (BA or BCOM):','BA')||'BA').trim().toUpperCase();
  const class_code=(course==='BCOM'?'1904':'12120')+semester;
- const code=prompt('Paper code:','')||'';
+ const code=prompt('Subject code:','')||'';
  const x={date,session,semester,class_code,subject:subject.trim(),code,type:'Manual',students:0,absent:0,paper:'....',option:'....'};
  const o=gnduSlipRead();o.manual=o.manual||[];o.manual.push(x);localStorage.setItem(GNDU_SLIP_STORE,JSON.stringify(o));gnduSlipRefresh();
 }
@@ -7221,11 +7223,12 @@ function gnduSlipMarkup(){
  const date=document.getElementById('gnduSlipDate').value,session=document.getElementById('gnduSlipSession').value,centre=gnduSlipEsc(document.getElementById('gnduSlipCentre').value);
  const displayDate=date?date.split('-').reverse().join('-'):'----';
  const active=gnduSlipEntries.filter(x=>Math.max(0,Number(x.students)-Number(x.absent))>0||x.type==='Manual');
+ const allValues=fn=>[...new Set(gnduSlipEntries.map(fn).filter(Boolean))].map(gnduSlipEsc).join('; ')||'----';
  const pages=[];for(let i=0;i<Math.max(1,Math.ceil(active.length/4));i++){
  const group=active.slice(i*4,i*4+4),first=group[0]||{semester:'',subject:'----',paper:'....',option:'....'};
  const head=`<div class="gndu-slip-header"><h2>GURU NANAK DEV UNIVERSITY</h2><div class="gndu-slip-headgrid"><div>
- <div class="gndu-slip-line">Centre No. <span>${centre}</span></div><div class="gndu-slip-line">Examination(s) <span>${gnduSlipEsc(gnduSlipExamName(first))}</span></div>
- <div class="gndu-slip-line">Subject(s) <span>${gnduSlipEsc(first.subject)}</span></div><div class="gndu-slip-line">Paper(s) <span>${gnduSlipEsc(first.paper)}</span></div>
+ <div class="gndu-slip-line">Centre No. <span>${centre}</span></div><div class="gndu-slip-line">Examination(s) <span>${allValues(gnduSlipExamName)}</span></div>
+ <div class="gndu-slip-line">Subject(s) <span>${allValues(x=>x.subject)}</span></div><div class="gndu-slip-line">Paper(s) <span>${allValues(x=>x.paper)}</span></div>
  <div class="gndu-slip-line">Date <span>${displayDate}</span></div><div class="gndu-slip-line">*Session <span>${session}</span></div>
  <div style="margin-top:18px">Signature of the Supdt. ...................................</div></div>
  <div style="padding:12px 25px"><b>To</b><p style="margin-top:25px"><b>Deputy Registrar (Secrecy),<br>Guru Nanak Dev University,<br>Amritsar-143005</b></p></div></div>
