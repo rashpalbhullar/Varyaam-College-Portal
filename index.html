@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>I. T. College for Women, Algon Kothi - Portal</title>
+  <title>Varyaam Nexus | College Portal</title>
 
   <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -351,6 +351,10 @@
 .gndu-slip-bottom th,.gndu-slip-bottom td{border:1px solid black;padding:5px 3px}
 @media print{body.gndu-slip-printing>*{display:none!important}body.gndu-slip-printing>#gnduSlipPrintRoot{display:block!important;position:absolute;top:0;left:0;width:100%;visibility:visible!important}body.gndu-slip-printing #gnduSlipPrintRoot *{visibility:visible!important} .gndu-slip-page{margin:0 auto;max-width:none;min-height:0;page-break-after:always}@page{size:A4 portrait;margin:8mm}}
 </style>
+<style>
+.top-header .vn-college-heading{font-family:system-ui,sans-serif;font-size:clamp(18px,1.8vw,29px);font-weight:800;line-height:1.2;color:#174b80;letter-spacing:-.5px;margin-bottom:5px;background:linear-gradient(100deg,#174b80,#087e91,#6335a3);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.top-header{gap:16px;flex-wrap:wrap}.vn-header-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:auto}.vn-clock{display:flex;align-items:center;gap:10px;font-family:system-ui,sans-serif;color:#16486d;background:#edf5fc;border:1px solid #d4e5f4;border-radius:8px;padding:5px 10px;white-space:nowrap}.vn-clock time{font-size:17px;font-weight:750;font-variant-numeric:tabular-nums}.vn-clock span{font-size:12px;font-weight:600;color:#475569}@media(max-width:700px){.vn-header-right{width:100%}.vn-college-heading{font-size:20px!important}}@media print{.vn-clock{display:none!important}}
+</style>
 </head>
 <body>
 
@@ -375,8 +379,8 @@
 <div id="loginScreen" class="login-container">
   <div class="login-card">
     <div class="text-center mb-3">
-      <img id="loginLogoImg" src="https://i.ibb.co/8405qjzb/ITCW.png" alt="Logo" style="width: 65px; height: 65px; object-fit: contain; margin: 0 auto 10px; display: block;">
-      <div class="login-college-name">I. T. College for Women, Algon Kothi</div>
+      <img id="loginLogoImg" src="https://qhhybljouwduhzqyodlv.supabase.co/storage/v1/object/public/Master/Logo/Violet%20Cyan%20Geometric%20Monogram%20%281%29.png" alt="Varyaam Nexus" onerror="this.style.display='none'" style="width:65px;height:65px;object-fit:contain;margin:0 auto 8px;display:block;background:transparent;border-radius:0">
+      <div class="login-college-name">Varyaam Nexus</div>
       <div class="login-title">Student Fee & Academic Management Portal</div>
     </div>
     <div class="mb-3">
@@ -420,9 +424,9 @@
 
   <aside class="sidebar" id="appSidebar">
     <div class="logo">
-      <img id="headerLogo" src="https://i.ibb.co/8405qjzb/ITCW.png" alt="College Logo">
-      <div class="logo-text">IT College for Women</div>
-      <div class="logo-subtext">Algon Kothi (Tarn Taran)</div>
+      <img src="https://qhhybljouwduhzqyodlv.supabase.co/storage/v1/object/public/Master/Logo/Violet%20Cyan%20Geometric%20Monogram%20%281%29.png" alt="Varyaam Nexus" onerror="this.style.display='none'" style="width:65px;height:65px;object-fit:contain;margin:0 auto 8px;display:block;background:transparent;border-radius:0">
+      <div class="logo-text">Varyaam Nexus</div>
+      <div class="logo-subtext">Versatile Networks. New Horizons</div>
     </div>
 
     <div class="paid-licence-sidebar-badge"><i class="fas fa-shield-check"></i> LICENSED VERSION</div>
@@ -495,21 +499,24 @@
   <main class="main-content">
     
     <header class="top-header">
-      <div id="topCenterLicenceDisplay" class="paid-licence-top-badge" aria-label="Paid licence active"><i class="fas fa-shield-alt"></i> LICENSED</div>
       <div class="d-flex align-items-center">
         <button class="mobile-menu-btn" onclick="toggleMobileSidebar(true)"><i class="fas fa-bars"></i></button>
+        <img id="headerLogo" src="https://i.ibb.co/8405qjzb/ITCW.png" alt="College Logo" style="width:58px;height:58px;object-fit:contain;flex-shrink:0;margin-right:14px">
         <div>
+          <div class="vn-college-heading">I. T. College for Women, Algon Kothi</div>
           <h5 class="fw-bold mb-0 text-dark" id="pageTitleDisplay">Dashboard Overview</h5>
           <small class="text-muted">Academic Session 2026-27 | GNDU Associate College</small>
         </div>
       </div>
-      <div class="d-flex align-items-center gap-2">
-
+      <div class="vn-header-right">
+        <div class="vn-clock"><time id="vnClockTime"></time><span id="vnClockDate"></span></div>
+        <div class="d-flex align-items-center gap-2" style="flex-wrap:wrap;justify-content:flex-end">
         <span class="paid-licence-header-badge"><i class="fas fa-check-circle me-1"></i> LICENSED</span>
         <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="openSelfProfileModal()">
           <i class="fas fa-user-cog me-1"></i> <span id="currentUserDisplay">Admin</span>
         </button>
         <button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt me-1"></i> Logout</button>
+        </div>
       </div>
     </header>
 
@@ -3052,7 +3059,8 @@ with check (school_code = 'ITCW-ALGON' and exam_session = '2026-DEC-ODD');</pre>
       .gndu-seat-subject-summary-line{display:inline-block;margin-right:10px}
       .gndu-seating-total{flex:0 0 auto;display:flex;justify-content:flex-end;padding:3mm 8mm 4mm;font-size:13px}
       @media print{.gndu-seating-print-card{margin:0!important}.gndu-seating-sheet{box-shadow:none}}
-      </style></head><body>${content.innerHTML}</body></html>`);
+      </style></head><body>${content.innerHTML}
+</body></html>`);
     w.document.close();w.focus();setTimeout(()=>w.print(),300);
   }
 
@@ -7259,6 +7267,9 @@ function gnduSlipPrint(){
  w.document.write(`<!DOCTYPE html><html><head><title>GNDU Answer Sheet Slips</title>${styles}<style>@page{size:A4 portrait;margin:8mm}html,body,body *, .gndu-slip-page,.gndu-slip-page *{visibility:visible!important}body{background:white!important;display:block!important}.gndu-slip-page{display:block!important;margin:0 auto;break-after:page}</style></head><body>${html}</body></html>`);
  w.document.close();w.focus();setTimeout(()=>{w.focus();w.print();},700);
 }
+</script>
+<script>
+(function(){const t=document.getElementById('vnClockTime'),d=document.getElementById('vnClockDate');const tf=new Intl.DateTimeFormat('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});const df=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',weekday:'short',day:'2-digit',month:'short',year:'numeric'});function tick(){const n=new Date();t.textContent=tf.format(n).toUpperCase();t.dateTime=n.toISOString();d.textContent=df.format(n);}tick();setInterval(tick,1000);})();
 </script>
 </body>
 </html>
